@@ -39,28 +39,29 @@ print(torch.cuda.get_device_name(3))
 # sample from it.
 train_loader = get_cifar_loader(train=True)
 val_loader = get_cifar_loader(train=False)
-for X,y in train_loader:
-    ## --------------------
-    # Add code as needed
-    #
-    #
-    #
-    #
-    ## --------------------
+for X, y in train_loader:
+    print("X shape:", X.shape)
+    print("y shape:", y.shape)
+    plt.imshow(np.transpose(X[0].numpy(), (1, 2, 0)))
+    plt.title(f"Label: {y[0].item()}")
+    plt.show()
     break
 
 
 
 # This function is used to calculate the accuracy of model classification
-def get_accuracy():
-    ## --------------------
-    # Add code as needed
-    #
-    #
-    #
-    #
-    ## --------------------
-    pass
+def get_accuracy(model, data_loader, device):
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for X, y in data_loader:
+            X, y = X.to(device), y.to(device)
+            outputs = model(X)
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == y).sum().item()
+            total += y.size(0)
+    return correct / total
 
 # Set a random seed to ensure reproducible results
 def set_random_seeds(seed_value=0, device='cpu'):
@@ -107,19 +108,12 @@ def train(model, optimizer, criterion, train_loader, val_loader, scheduler=None,
             optimizer.zero_grad()
             prediction = model(x)
             loss = criterion(prediction, y)
-            # You may need to record some variable values here
-            # if you want to get loss gradient, use
-            # grad = model.classifier[4].weight.grad.clone()
-            ## --------------------
-            # Add your code
-            #
-            #
-            #
-            #
-            ## --------------------
-
-
+            # 记录loss
+            loss_list.append(loss.item())
+            learning_curve[epoch] += loss.item()
+            # 记录梯度（以最后一层为例）
             loss.backward()
+            grad.append(model.classifier[-1].weight.grad.clone().cpu().numpy())
             optimizer.step()
 
         losses_list.append(loss_list)
@@ -132,15 +126,17 @@ def train(model, optimizer, criterion, train_loader, val_loader, scheduler=None,
 
         # Test your model and save figure here (not required)
         # remember to use model.eval()
-        ## --------------------
-        # Add code as needed
-        #
-        #
-        #
-        #
-        ## --------------------
+        model.eval()
+        train_acc = get_accuracy(model, train_loader, device)
+        val_acc = get_accuracy(model, val_loader, device)
+        train_accuracy_curve[epoch] = train_acc
+        val_accuracy_curve[epoch] = val_acc
+        axes[1].plot(val_accuracy_curve, label='val_acc')
+        axes[1].plot(train_accuracy_curve, label='train_acc')
+        axes[1].legend()
+        plt.show()
 
-    return
+    return losses_list, grads
 
 
 # Train your model
@@ -164,22 +160,21 @@ np.savetxt(os.path.join(grad_save_path, 'grads.txt'), grads, fmt='%s', delimiter
 # the minimum value to min_curve
 min_curve = []
 max_curve = []
-## --------------------
-# Add your code
-#
-#
-#
-#
-## --------------------
+if len(losses_list) > 0:
+    loss_array = np.array(losses_list, dtype=object)
+    # 处理 ragged array
+    min_curve = np.array([np.min(epoch_losses) for epoch_losses in loss_array])
+    max_curve = np.array([np.max(epoch_losses) for epoch_losses in loss_array])
 
 # Use this function to plot the final loss landscape,
 # fill the area between the two curves can use plt.fill_between()
-def plot_loss_landscape():
-    ## --------------------
-    # Add your code
-    #
-    #
-    #
-    #
-    ## --------------------
-    pass
+def plot_loss_landscape(min_curve, max_curve):
+    plt.figure(figsize=(10, 5))
+    plt.plot(min_curve, label='min loss')
+    plt.plot(max_curve, label='max loss')
+    plt.fill_between(range(len(min_curve)), min_curve, max_curve, alpha=0.3)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Loss Landscape')
+    plt.legend()
+    plt.show()

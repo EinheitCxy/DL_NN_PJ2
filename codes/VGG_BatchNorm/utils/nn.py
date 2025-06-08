@@ -4,7 +4,6 @@ Utils for neural networks
 
 from torch import nn
 
-
 def init_weights_(m):
     """
     Initializes weights of m according to Xavier normal method.
